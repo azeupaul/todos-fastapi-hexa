@@ -71,10 +71,10 @@ pytest
 
 ### Phase 1 : Setup Initial et Structure Simple
 - [ ] **Configuration de l'environnement**
-  - [ ] Initialisation du projet avec `uv`
-  - [ ] Configuration de `pyproject.toml`
-  - [ ] Setup de `ruff` pour le linting et formatting
-  - [ ] Configuration de `mypy` pour le typage statique
+  - [x] Initialisation du projet avec `uv`
+  - [x] Configuration de `pyproject.toml`
+  - [x] Setup de `ruff` pour le linting et formatting
+  - [x] Configuration de `mypy` pour le typage statique
   - [ ] Setup de `pytest` pour les tests
   - [ ] Configuration de `pre-commit` hooks
   - [ ] Structure de dossiers initiale
