@@ -75,9 +75,9 @@ pytest
   - [x] Configuration de `pyproject.toml`
   - [x] Setup de `ruff` pour le linting et formatting
   - [x] Configuration de `mypy` pour le typage statique
-  - [ ] Setup de `pytest` pour les tests
-  - [ ] Configuration de `pre-commit` hooks
-  - [ ] Structure de dossiers initiale
+  - [x] Setup de `pytest` pour les tests
+  - [x] Configuration de `pre-commit` hooks
+  - [x] Structure de dossiers initiale
 
 - [ ] **API FastAPI basique**
   - [ ] Modèles Pydantic pour les tâches (`Task`, `CreateTask`, `UpdateTask`)
@@ -303,7 +303,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## ✅ Statut Actuel
 
-**Phase en cours** : Phase 1 - Setup Initial et Structure Simple  
+**Phase en cours** : Phase 1 - Setup Initial et Structure Simple
 **Progression globale** : 5%
 
 ---
