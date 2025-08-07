@@ -1,0 +1,11 @@
+# Configuration ruff simple
+
+line-length = 88
+target-version = "py311"
+
+[lint]
+select = ["E", "W", "F", "I"]
+ignore = ["E501"]
+
+[format]
+quote-style = "double"
