@@ -1,6 +1,7 @@
 """Point d'entrée principal de l'application FastAPI."""
 from fastapi import FastAPI
 
+from src.api.auth import router as auth_router
 from src.api.tasks import router as tasks_router
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
 
 # Inclure les routes des tâches
 app.include_router(tasks_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/")

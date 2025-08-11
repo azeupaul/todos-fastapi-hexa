@@ -45,6 +45,7 @@ class Task(TaskBase):
     """Schéma complet d'une tâche."""
 
     id: int
+    user_id: int
     created_at: datetime
     completed_at: datetime | None = None
 
