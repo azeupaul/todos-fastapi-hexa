@@ -93,7 +93,7 @@ pytest
   - [ ] Protection des endpoints de tâches
 
 - [ ] **Tests unitaires de base**
-  - [ ] Tests pour chaque endpoint
+  - [x] Tests pour chaque endpoint
   - [x] Tests de validation des modèles Pydantic
   - [ ] Tests d'authentification
   - [ ] Configuration pytest avec fixtures
