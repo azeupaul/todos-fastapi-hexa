@@ -80,10 +80,10 @@ pytest
   - [x] Structure de dossiers initiale
 
 - [ ] **API FastAPI basique**
-  - [ ] Modèles Pydantic pour les tâches (`Task`, `CreateTask`, `UpdateTask`)
-  - [ ] Endpoints CRUD basiques (GET, POST, PUT, DELETE)
-  - [ ] Stockage en mémoire avec une liste/dictionnaire
-  - [ ] Documentation automatique Swagger
+  - [x] Modèles Pydantic pour les tâches (`Task`, `CreateTask`, `UpdateTask`)
+  - [x] Endpoints CRUD basiques (GET, POST, PUT, DELETE)
+  - [x] Stockage en mémoire avec une liste/dictionnaire
+  - [x] Documentation automatique Swagger
   - [ ] Gestion basique des erreurs
 
 - [ ] **Authentification basique**
@@ -94,7 +94,7 @@ pytest
 
 - [ ] **Tests unitaires de base**
   - [ ] Tests pour chaque endpoint
-  - [ ] Tests de validation des modèles Pydantic
+  - [x] Tests de validation des modèles Pydantic
   - [ ] Tests d'authentification
   - [ ] Configuration pytest avec fixtures
   - [ ] Tests de cas d'erreur

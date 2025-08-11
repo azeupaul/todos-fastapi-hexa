@@ -1,9 +1,14 @@
 """Point d'entrée principal de l'application FastAPI."""
 from fastapi import FastAPI
 
+from src.api.tasks import router as tasks_router
+
 app = FastAPI(
     title="Todos FastAPI", description="Une API de gestion de tâches", version="0.1.0"
 )
+
+# Inclure les routes des tâches
+app.include_router(tasks_router, prefix="/api/v1")
 
 
 @app.get("/")
