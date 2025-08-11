@@ -70,7 +70,7 @@ pytest
 ## 📋 Roadmap et Suivi
 
 ### Phase 1 : Setup Initial et Structure Simple
-- [ ] **Configuration de l'environnement**
+- [x] **Configuration de l'environnement**
   - [x] Initialisation du projet avec `uv`
   - [x] Configuration de `pyproject.toml`
   - [x] Setup de `ruff` pour le linting et formatting
@@ -86,16 +86,16 @@ pytest
   - [x] Documentation automatique Swagger
   - [ ] Gestion basique des erreurs
 
-- [ ] **Authentification basique**
-  - [ ] Modèle utilisateur (`User`, `CreateUser`, `LoginUser`)
-  - [ ] Endpoints d'authentification (register, login)
-  - [ ] JWT tokens et middleware d'authentification
-  - [ ] Protection des endpoints de tâches
+- [x] **Authentification basique**
+  - [x] Modèle utilisateur (`User`, `CreateUser`, `LoginUser`)
+  - [x] Endpoints d'authentification (register, login)
+  - [x] JWT tokens et middleware d'authentification
+  - [x] Protection des endpoints de tâches
 
 - [ ] **Tests unitaires de base**
   - [x] Tests pour chaque endpoint
   - [x] Tests de validation des modèles Pydantic
-  - [ ] Tests d'authentification
+  - [x] Tests d'authentification
   - [ ] Configuration pytest avec fixtures
   - [ ] Tests de cas d'erreur
 
