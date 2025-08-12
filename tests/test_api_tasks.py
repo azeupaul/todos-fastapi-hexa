@@ -1,3 +1,8 @@
+"""Tests pour les endpoints CRUD des tâches avec authentification.
+
+Ce fichier se concentre sur les fonctionnalités CRUD des tâches.
+Pour les tests de sécurité et d'isolation, voir test_auth_tasks.py
+"""
 from datetime import datetime, timedelta
 
 import pytest
@@ -5,26 +10,55 @@ from fastapi.testclient import TestClient
 
 from src.main import app
 from src.models.memory_store import task_store
+from src.models.user_store import user_store
 
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def reset_task_store():
-    """Reset le store avant chaque test."""
+def reset_stores():
+    """Reset les stores avant chaque test."""
     task_store._tasks = {}
     task_store._next_id = 1
+    user_store._users = {}
+    user_store._users_by_username = {}
+    user_store._users_by_email = {}
+    user_store._next_id = 1
 
 
-def test_create_task_minimal():
+@pytest.fixture
+def auth_user():
+    """Utilisateur authentifié pour les tests."""
+    user_data = {
+        "username": "testuser",
+        "email": "test@example.com",
+        "password": "testpassword123",
+    }
+
+    # S'enregistrer
+    client.post("/api/v1/auth/register", json=user_data)
+
+    # Se connecter
+    login_data = {"username": user_data["username"], "password": user_data["password"]}
+    login_response = client.post("/api/v1/auth/login", data=login_data)
+    token = login_response.json()["access_token"]
+
+    return {"headers": {"Authorization": f"Bearer {token}"}, "user_data": user_data}
+
+
+# Tests de création de tâches
+def test_create_task_minimal(auth_user):
     """Test de création d'une tâche avec les champs minimaux."""
     task_data = {"title": "Test Task"}
 
-    response = client.post("/api/v1/tasks/", json=task_data)
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 201
     data = response.json()
     assert data["id"] == 1
+    assert data["user_id"] == 1
     assert data["title"] == "Test Task"
     assert data["description"] is None
     assert data["completed"] is False
@@ -34,7 +68,7 @@ def test_create_task_minimal():
     assert data["completed_at"] is None
 
 
-def test_create_task_complete():
+def test_create_task_complete(auth_user):
     """Test de création d'une tâche avec tous les champs."""
     due_date = (datetime.now() + timedelta(days=7)).isoformat()
     task_data = {
@@ -45,10 +79,13 @@ def test_create_task_complete():
         "priority": "High",
     }
 
-    response = client.post("/api/v1/tasks/", json=task_data)
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 201
     data = response.json()
+    assert data["user_id"] == 1
     assert data["title"] == "Complete Task"
     assert data["description"] == "A complete task description"
     assert data["completed"] is True
@@ -57,97 +94,112 @@ def test_create_task_complete():
     assert data["completed_at"] is not None
 
 
-def test_create_task_invalid_priority():
-    """Test de création d'une tâche avec priorité invalide."""
+def test_create_task_with_authenticated_user_validation(auth_user):
+    """Test de validation des données lors de la création avec authentification."""
+    # Test avec priorité invalide
     task_data = {"title": "Test Task", "priority": "InvalidPriority"}
-
-    response = client.post("/api/v1/tasks/", json=task_data)
-
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     assert response.status_code == 422
 
-
-def test_create_task_missing_title():
-    """Test de création d'une tâche sans titre."""
+    # Test sans titre
     task_data = {"description": "Task without title"}
-
-    response = client.post("/api/v1/tasks/", json=task_data)
-
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     assert response.status_code == 422
 
 
-def test_get_all_tasks_empty():
+# Tests de récupération de tâches
+def test_get_all_tasks_empty(auth_user):
     """Test de récupération de toutes les tâches quand vide."""
-    response = client.get("/api/v1/tasks/")
+    response = client.get("/api/v1/tasks/", headers=auth_user["headers"])
 
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_get_all_tasks_multiple():
+def test_get_all_tasks_multiple(auth_user):
     """Test de récupération de plusieurs tâches."""
     # Créer plusieurs tâches
     task1 = {"title": "Task 1", "priority": "High"}
     task2 = {"title": "Task 2", "priority": "Low"}
+    task3 = {"title": "Task 3", "description": "Description 3"}
 
-    client.post("/api/v1/tasks/", json=task1)
-    client.post("/api/v1/tasks/", json=task2)
+    client.post("/api/v1/tasks/", json=task1, headers=auth_user["headers"])
+    client.post("/api/v1/tasks/", json=task2, headers=auth_user["headers"])
+    client.post("/api/v1/tasks/", json=task3, headers=auth_user["headers"])
 
-    response = client.get("/api/v1/tasks/")
+    response = client.get("/api/v1/tasks/", headers=auth_user["headers"])
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
+    assert len(data) == 3
+    assert all(task["user_id"] == 1 for task in data)
     assert data[0]["title"] == "Task 1"
     assert data[1]["title"] == "Task 2"
+    assert data[2]["title"] == "Task 3"
 
 
-def test_get_task_exists():
+def test_get_task_exists(auth_user):
     """Test de récupération d'une tâche existante."""
     # Créer une tâche
     task_data = {"title": "Test Task", "description": "Test description"}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     task_id = create_response.json()["id"]
 
     # Récupérer la tâche
-    response = client.get(f"/api/v1/tasks/{task_id}")
+    response = client.get(f"/api/v1/tasks/{task_id}", headers=auth_user["headers"])
 
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == task_id
+    assert data["user_id"] == 1
     assert data["title"] == "Test Task"
     assert data["description"] == "Test description"
 
 
-def test_get_task_not_found():
+def test_get_task_not_found(auth_user):
     """Test de récupération d'une tâche inexistante."""
-    response = client.get("/api/v1/tasks/999")
+    response = client.get("/api/v1/tasks/999", headers=auth_user["headers"])
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Tâche non trouvée"
 
 
-def test_update_task_partial():
+# Tests de mise à jour de tâches
+def test_update_task_partial(auth_user):
     """Test de mise à jour partielle d'une tâche."""
     # Créer une tâche
     task_data = {"title": "Original Task", "priority": "Normal"}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     task_id = create_response.json()["id"]
 
     # Mettre à jour partiellement
     update_data = {"title": "Updated Task"}
-    response = client.put(f"/api/v1/tasks/{task_id}", json=update_data)
+    response = client.put(
+        f"/api/v1/tasks/{task_id}", json=update_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == "Updated Task"
     assert data["priority"] == "Normal"  # Pas changé
+    assert data["user_id"] == 1
 
 
-def test_update_task_complete():
+def test_update_task_complete(auth_user):
     """Test de mise à jour complète d'une tâche."""
     # Créer une tâche
     task_data = {"title": "Original Task"}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     task_id = create_response.json()["id"]
 
     # Mettre à jour complètement
@@ -159,7 +211,9 @@ def test_update_task_complete():
         "due_date": due_date,
         "priority": "Top",
     }
-    response = client.put(f"/api/v1/tasks/{task_id}", json=update_data)
+    response = client.put(
+        f"/api/v1/tasks/{task_id}", json=update_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -169,35 +223,34 @@ def test_update_task_complete():
     assert data["due_date"] == due_date
     assert data["priority"] == "Top"
     assert data["completed_at"] is not None
+    assert data["user_id"] == 1
 
 
-def test_update_task_mark_completed():
-    """Test de marquage d'une tâche comme complétée."""
+def test_update_task_completion_states(auth_user):
+    """Test des transitions d'état de completion."""
     # Créer une tâche non complétée
     task_data = {"title": "Task to complete", "completed": False}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     task_id = create_response.json()["id"]
 
     # Marquer comme complétée
     update_data = {"completed": True}
-    response = client.put(f"/api/v1/tasks/{task_id}", json=update_data)
+    response = client.put(
+        f"/api/v1/tasks/{task_id}", json=update_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert data["completed"] is True
     assert data["completed_at"] is not None
 
-
-def test_update_task_mark_uncompleted():
-    """Test de marquage d'une tâche comme non complétée."""
-    # Créer une tâche complétée
-    task_data = {"title": "Completed Task", "completed": True}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
-    task_id = create_response.json()["id"]
-
     # Marquer comme non complétée
     update_data = {"completed": False}
-    response = client.put(f"/api/v1/tasks/{task_id}", json=update_data)
+    response = client.put(
+        f"/api/v1/tasks/{task_id}", json=update_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -205,55 +258,92 @@ def test_update_task_mark_uncompleted():
     assert data["completed_at"] is None
 
 
-def test_update_task_not_found():
+def test_update_task_not_found(auth_user):
     """Test de mise à jour d'une tâche inexistante."""
     update_data = {"title": "Updated Task"}
-    response = client.put("/api/v1/tasks/999", json=update_data)
+    response = client.put(
+        "/api/v1/tasks/999", json=update_data, headers=auth_user["headers"]
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Tâche non trouvée"
 
 
-def test_delete_task_exists():
+# Tests de suppression de tâches
+def test_delete_task_exists(auth_user):
     """Test de suppression d'une tâche existante."""
     # Créer une tâche
     task_data = {"title": "Task to delete"}
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
     task_id = create_response.json()["id"]
 
     # Supprimer la tâche
-    response = client.delete(f"/api/v1/tasks/{task_id}")
+    response = client.delete(f"/api/v1/tasks/{task_id}", headers=auth_user["headers"])
 
     assert response.status_code == 204
 
     # Vérifier que la tâche n'existe plus
-    get_response = client.get(f"/api/v1/tasks/{task_id}")
+    get_response = client.get(f"/api/v1/tasks/{task_id}", headers=auth_user["headers"])
     assert get_response.status_code == 404
 
 
-def test_delete_task_not_found():
+def test_delete_task_not_found(auth_user):
     """Test de suppression d'une tâche inexistante."""
-    response = client.delete("/api/v1/tasks/999")
+    response = client.delete("/api/v1/tasks/999", headers=auth_user["headers"])
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Tâche non trouvée"
 
 
-def test_task_priorities_all_valid():
+# Tests de validation des priorités
+def test_task_priorities_all_valid(auth_user):
     """Test que toutes les priorités sont valides."""
     priorities = ["Low", "Normal", "Medium", "High", "Top"]
 
     for priority in priorities:
         task_data = {"title": f"Task {priority}", "priority": priority}
-        response = client.post("/api/v1/tasks/", json=task_data)
+        response = client.post(
+            "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+        )
 
         assert response.status_code == 201
         data = response.json()
         assert data["priority"] == priority
+        assert data["user_id"] == 1
 
 
-def test_task_workflow():
-    """Test d'un workflow complet de tâche."""
+def test_task_due_dates(auth_user):
+    """Test de gestion des dates d'échéance."""
+    # Tâche avec date d'échéance future
+    future_date = (datetime.now() + timedelta(days=10)).isoformat()
+    task_data = {"title": "Future Task", "due_date": future_date}
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["due_date"] == future_date
+
+    # Tâche avec date d'échéance passée
+    past_date = (datetime.now() - timedelta(days=5)).isoformat()
+    task_data = {"title": "Past Task", "due_date": past_date}
+    response = client.post(
+        "/api/v1/tasks/", json=task_data, headers=auth_user["headers"]
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["due_date"] == past_date
+
+
+# Test de workflow complet
+def test_complete_task_workflow(auth_user):
+    """Test d'un workflow complet de tâche avec toutes les opérations CRUD."""
+    headers = auth_user["headers"]
+
     # 1. Créer une tâche
     due_date = (datetime.now() + timedelta(days=5)).isoformat()
     task_data = {
@@ -262,37 +352,79 @@ def test_task_workflow():
         "priority": "Medium",
         "due_date": due_date,
     }
-    create_response = client.post("/api/v1/tasks/", json=task_data)
+    create_response = client.post("/api/v1/tasks/", json=task_data, headers=headers)
     assert create_response.status_code == 201
     task_id = create_response.json()["id"]
 
     # 2. Récupérer la tâche
-    get_response = client.get(f"/api/v1/tasks/{task_id}")
+    get_response = client.get(f"/api/v1/tasks/{task_id}", headers=headers)
     assert get_response.status_code == 200
+    task = get_response.json()
+    assert task["user_id"] == 1
 
     # 3. Mettre à jour la priorité
-    update_response = client.put(f"/api/v1/tasks/{task_id}", json={"priority": "High"})
+    update_response = client.put(
+        f"/api/v1/tasks/{task_id}", json={"priority": "High"}, headers=headers
+    )
     assert update_response.status_code == 200
     assert update_response.json()["priority"] == "High"
 
     # 4. Marquer comme complétée
-    complete_response = client.put(f"/api/v1/tasks/{task_id}", json={"completed": True})
+    complete_response = client.put(
+        f"/api/v1/tasks/{task_id}", json={"completed": True}, headers=headers
+    )
     assert complete_response.status_code == 200
-    assert complete_response.json()["completed"] is True
+    completed_task = complete_response.json()
+    assert completed_task["completed"] is True
+    assert completed_task["completed_at"] is not None
 
     # 5. Vérifier dans la liste
-    list_response = client.get("/api/v1/tasks/")
+    list_response = client.get("/api/v1/tasks/", headers=headers)
     assert list_response.status_code == 200
     tasks = list_response.json()
     assert len(tasks) == 1
     assert tasks[0]["id"] == task_id
     assert tasks[0]["completed"] is True
+    assert tasks[0]["user_id"] == 1
 
     # 6. Supprimer la tâche
-    delete_response = client.delete(f"/api/v1/tasks/{task_id}")
+    delete_response = client.delete(f"/api/v1/tasks/{task_id}", headers=headers)
     assert delete_response.status_code == 204
 
     # 7. Vérifier qu'elle n'existe plus
-    final_list_response = client.get("/api/v1/tasks/")
+    final_list_response = client.get("/api/v1/tasks/", headers=headers)
     assert final_list_response.status_code == 200
     assert final_list_response.json() == []
+
+
+# Tests d'accès non authentifié
+def test_unauthenticated_access_denied():
+    """Test que tous les endpoints de tâches nécessitent une authentification."""
+    # Toutes ces requêtes doivent retourner 401
+    assert client.get("/api/v1/tasks/").status_code == 401
+    assert client.post("/api/v1/tasks/", json={"title": "Test"}).status_code == 401
+    assert client.get("/api/v1/tasks/1").status_code == 401
+    assert client.put("/api/v1/tasks/1", json={"title": "Test"}).status_code == 401
+    assert client.delete("/api/v1/tasks/1").status_code == 401
+
+
+def test_invalid_token_access_denied():
+    """Test d'accès avec un token invalide."""
+    headers = {"Authorization": "Bearer invalid_token"}
+
+    # Toutes les opérations doivent échouer
+    assert client.get("/api/v1/tasks/", headers=headers).status_code == 401
+    assert (
+        client.post(
+            "/api/v1/tasks/", json={"title": "Test"}, headers=headers
+        ).status_code
+        == 401
+    )
+    assert client.get("/api/v1/tasks/1", headers=headers).status_code == 401
+    assert (
+        client.put(
+            "/api/v1/tasks/1", json={"title": "Test"}, headers=headers
+        ).status_code
+        == 401
+    )
+    assert client.delete("/api/v1/tasks/1", headers=headers).status_code == 401
