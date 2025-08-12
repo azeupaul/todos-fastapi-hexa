@@ -84,9 +84,11 @@ def test_task_complete_schema():
     """Test du schéma complet Task."""
     now = datetime.now()
     completed_at = now + timedelta(hours=1)
+    user_id = 1
 
     task = Task(
         id=1,
+        user_id=user_id,
         title="Complete Task Schema",
         description="Test description",
         completed=True,
@@ -97,6 +99,7 @@ def test_task_complete_schema():
     )
 
     assert task.id == 1
+    assert task.user_id == user_id
     assert task.title == "Complete Task Schema"
     assert task.description == "Test description"
     assert task.completed is True
