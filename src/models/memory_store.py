@@ -33,23 +33,25 @@ class TaskStore:
     def get_task(self, task_id: int, user_id: int) -> Task | None:
         """Récupérer une tâche par son ID."""
         task = self._tasks.get(task_id)
-        if task.user_id != user_id:
+        if task and task.user_id != user_id:
             return None
         return task
 
     def get_all_tasks(self, user_id: int) -> List[Task]:
         """Récupérer toutes les tâches."""
-        return [task for task in self._tasks.values() if task.user_id == user_id]
+        return [
+            task for task in self._tasks.values() if task and task.user_id == user_id
+        ]
 
     def update_task(
         self, task_id: int, task_update: TaskUpdate, user_id: int
     ) -> Task | None:
         """Mettre à jour une tâche."""
-        if task_id not in self._tasks:
+        if task_id not in self._tasks or not self._tasks[task_id]:
             return None
 
         task = self._tasks[task_id]
-        if task.user_id != user_id:
+        if task and task.user_id != user_id:
             return None
 
         update_data = task_update.model_dump(exclude_unset=True)
@@ -71,7 +73,11 @@ class TaskStore:
 
     def delete_task(self, task_id: int, user_id: int) -> bool:
         """Supprimer une tâche."""
-        if task_id in self._tasks and self._tasks[task_id].user_id == user_id:
+        if (
+            task_id in self._tasks
+            and self._tasks[task_id]
+            and self._tasks[task_id].user_id == user_id
+        ):
             del self._tasks[task_id]
             return True
         return False
