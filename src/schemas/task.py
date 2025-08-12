@@ -2,7 +2,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Priority(str, Enum):
@@ -44,10 +44,9 @@ class TaskUpdate(BaseModel):
 class Task(TaskBase):
     """Schéma complet d'une tâche."""
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_id: int
     created_at: datetime
     completed_at: datetime | None = None
-
-    class Config:
-        from_attributes = True
